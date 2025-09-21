@@ -15,6 +15,9 @@ export default defineBackground(() => {
   const autoSyncDelayMs = 3000; // debounce multiple rapid changes
   let isAutoSyncing = false;
   let blockAutoSyncUntil = 0; // timestamp to temporarily block auto sync
+  // Auto-download state
+  const periodicDownloadAlarm = 'bookmarkhub_download_every_minute';
+  let isAutoDownloading = false;
 
   function disableAutoSyncTemporarily(ms: number = 5000) {
     if (autoSyncTimer) {
@@ -101,6 +104,19 @@ export default defineBackground(() => {
     }
   })
 
+  // --- Periodic auto-download using alarms ---
+  browser.runtime.onStartup.addListener(() => {
+    // Attempt an immediate download and schedule periodic downloads
+    initAutoDownload();
+  });
+  // Also initialize when the background loads (e.g., first install/open)
+  initAutoDownload();
+
+  browser.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name !== periodicDownloadAlarm) return;
+    await runAutoDownload();
+  });
+
   async function uploadBookmarks(notify: boolean = true) {
     try {
       let setting = await Setting.build()
@@ -176,6 +192,42 @@ export default defineBackground(() => {
       curOperType = prevOper === OperType.NONE ? OperType.NONE : prevOper;
       isAutoSyncing = false;
       browser.action.setBadgeText({ text: "" });
+    }
+  }
+  async function initAutoDownload() {
+    try {
+      const setting = await Setting.build();
+      // Only proceed if configured to prevent noisy errors
+      if (!setting.githubToken || !setting.gistID || !setting.gistFileName) return;
+      // Immediate one-time download on load/startup
+      await runAutoDownload();
+      // Ensure a 1-minute periodic alarm is set
+      try { await browser.alarms.clear(periodicDownloadAlarm); } catch { /* ignore */ }
+      await browser.alarms.create(periodicDownloadAlarm, { delayInMinutes: 1, periodInMinutes: 1 });
+    } catch (e) {
+      // Swallow init errors to avoid breaking background script
+      console.debug('initAutoDownload skipped:', e);
+    }
+  }
+  async function runAutoDownload() {
+    if (isAutoDownloading) return;
+    if (curOperType !== OperType.NONE) return; // don't run during manual ops
+    if (Date.now() < blockAutoSyncUntil) return; // respect temporary block around manual ops
+    // Validate settings before attempting network calls to avoid repeated notifications
+    const setting = await Setting.build();
+    if (!setting.githubToken || !setting.gistID || !setting.gistFileName) return;
+    isAutoDownloading = true;
+    const prevOper = curOperType;
+    curOperType = OperType.SYNC; // suppress bookmark change handlers during import
+    try {
+      await downloadBookmarks();
+      await refreshLocalCount();
+      browser.action.setBadgeText({ text: "" });
+    } catch (err) {
+      console.error('Auto download failed:', err);
+    } finally {
+      curOperType = prevOper === OperType.NONE ? OperType.NONE : prevOper;
+      isAutoDownloading = false;
     }
   }
   async function downloadBookmarks() {
