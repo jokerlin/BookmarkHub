@@ -86,5 +86,9 @@
     "removeAllBookmarksDesc": {
         "message": "清空本地浏览器书签，请先做好备份",
         "description": ""
+    },
+    "enableAutoSync": {
+        "message": "启用自动同步",
+        "description": "当本地书签变更时自动上传到Gist"
     }
 }

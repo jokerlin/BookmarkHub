@@ -86,5 +86,9 @@
     "removeAllBookmarksDesc": {
         "message": "全てのブックマークを削除します。事前にバックアップを行ってください。",
         "description": ""
+    },
+    "enableAutoSync": {
+        "message": "自動同期を有効にする",
+        "description": "ローカルのブックマーク変更時に自動アップロード"
     }
 }

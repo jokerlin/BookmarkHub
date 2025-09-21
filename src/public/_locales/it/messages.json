@@ -86,5 +86,9 @@
     "removeAllBookmarksDesc": {
         "message": "Rimuovi tutti i segnalibri. Fai prima un backup.",
         "description": ""
+    },
+    "enableAutoSync": {
+        "message": "Abilita sincronizzazione automatica",
+        "description": "Carica automaticamente quando cambiano i segnalibri locali"
     }
 }

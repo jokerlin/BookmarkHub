@@ -10,8 +10,23 @@ export default defineBackground(() => {
 
   let curOperType = OperType.NONE;
   let curBrowserType = BrowserType.CHROME;
+  // Auto-sync state
+  let autoSyncTimer: any = undefined;
+  const autoSyncDelayMs = 3000; // debounce multiple rapid changes
+  let isAutoSyncing = false;
+  let blockAutoSyncUntil = 0; // timestamp to temporarily block auto sync
+
+  function disableAutoSyncTemporarily(ms: number = 5000) {
+    if (autoSyncTimer) {
+      clearTimeout(autoSyncTimer);
+      autoSyncTimer = undefined;
+    }
+    blockAutoSyncUntil = Date.now() + ms;
+  }
   browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.name === 'upload') {
+      if (curOperType !== OperType.NONE) { sendResponse(false); return true; }
+      disableAutoSyncTemporarily();
       curOperType = OperType.SYNC
       uploadBookmarks().then(() => {
         curOperType = OperType.NONE
@@ -21,6 +36,8 @@ export default defineBackground(() => {
       });
     }
     if (msg.name === 'download') {
+      if (curOperType !== OperType.NONE) { sendResponse(false); return true; }
+      disableAutoSyncTemporarily();
       curOperType = OperType.SYNC
       downloadBookmarks().then(() => {
         curOperType = OperType.NONE
@@ -31,6 +48,8 @@ export default defineBackground(() => {
 
     }
     if (msg.name === 'removeAll') {
+      if (curOperType !== OperType.NONE) { sendResponse(false); return true; }
+      disableAutoSyncTemporarily();
       curOperType = OperType.REMOVE
       clearBookmarkTree().then(() => {
         curOperType = OperType.NONE
@@ -53,6 +72,7 @@ export default defineBackground(() => {
       browser.action.setBadgeText({ text: "!" });
       browser.action.setBadgeBackgroundColor({ color: "#F00" });
       refreshLocalCount();
+      scheduleAutoSync();
     }
   });
   browser.bookmarks.onChanged.addListener((id, info) => {
@@ -60,6 +80,7 @@ export default defineBackground(() => {
       // console.log("onChanged", id, info)
       browser.action.setBadgeText({ text: "!" });
       browser.action.setBadgeBackgroundColor({ color: "#F00" });
+      scheduleAutoSync();
     }
   })
   browser.bookmarks.onMoved.addListener((id, info) => {
@@ -67,6 +88,7 @@ export default defineBackground(() => {
       // console.log("onMoved", id, info)
       browser.action.setBadgeText({ text: "!" });
       browser.action.setBadgeBackgroundColor({ color: "#F00" });
+      scheduleAutoSync();
     }
   })
   browser.bookmarks.onRemoved.addListener((id, info) => {
@@ -75,10 +97,11 @@ export default defineBackground(() => {
       browser.action.setBadgeText({ text: "!" });
       browser.action.setBadgeBackgroundColor({ color: "#F00" });
       refreshLocalCount();
+      scheduleAutoSync();
     }
   })
 
-  async function uploadBookmarks() {
+  async function uploadBookmarks(notify: boolean = true) {
     try {
       let setting = await Setting.build()
       if (setting.githubToken == '') {
@@ -106,7 +129,7 @@ export default defineBackground(() => {
       });
       const count = getBookmarkCount(syncdata.bookmarks);
       await browser.storage.local.set({ remoteCount: count });
-      if (setting.enableNotify) {
+      if (notify && setting.enableNotify) {
         await browser.notifications.create({
           type: "basic",
           iconUrl: iconLogo,
@@ -118,12 +141,41 @@ export default defineBackground(() => {
     }
     catch (error: any) {
       console.error(error);
-      await browser.notifications.create({
-        type: "basic",
-        iconUrl: iconLogo,
-        title: browser.i18n.getMessage('uploadBookmarks'),
-        message: `${browser.i18n.getMessage('error')}：${error.message}`
-      });
+      if (notify) {
+        await browser.notifications.create({
+          type: "basic",
+          iconUrl: iconLogo,
+          title: browser.i18n.getMessage('uploadBookmarks'),
+          message: `${browser.i18n.getMessage('error')}：${error.message}`
+        });
+      }
+    }
+  }
+  async function scheduleAutoSync() {
+    if (curOperType !== OperType.NONE) return; // respect manual operations
+    if (isAutoSyncing) return; // avoid re-scheduling during active sync
+    if (Date.now() < blockAutoSyncUntil) return; // temporary block around manual ops
+    const setting = await Setting.build();
+    if (!setting.autoSyncEnabled) return; // gated by user setting
+    if (autoSyncTimer) clearTimeout(autoSyncTimer);
+    autoSyncTimer = setTimeout(async () => {
+      await runAutoSync();
+    }, autoSyncDelayMs);
+  }
+  async function runAutoSync() {
+    if (isAutoSyncing) return;
+    if (curOperType !== OperType.NONE) return; // don't run during manual upload/download/remove
+    if (Date.now() < blockAutoSyncUntil) return; // still within temporary block
+    isAutoSyncing = true;
+    // Temporarily mark as SYNC to prevent any incidental handlers
+    const prevOper = curOperType;
+    curOperType = OperType.SYNC;
+    try {
+      await uploadBookmarks(false); // silent auto-sync
+    } finally {
+      curOperType = prevOper === OperType.NONE ? OperType.NONE : prevOper;
+      isAutoSyncing = false;
+      browser.action.setBadgeText({ text: "" });
     }
   }
   async function downloadBookmarks() {
@@ -234,68 +286,86 @@ export default defineBackground(() => {
   }
 
   async function createBookmarkTree(bookmarkList: BookmarkInfo[] | undefined) {
-    if (bookmarkList == null) {
-      return;
+    if (!bookmarkList) return;
+    // global created cache keyed by parentPath + key(title/url)
+    const created = new Set<string>();
+    const tasks: Array<Promise<void>> = [];
+    for (const node of bookmarkList) {
+      if (
+        node.title == RootBookmarksType.MenuFolder ||
+        node.title == RootBookmarksType.MobileFolder ||
+        node.title == RootBookmarksType.ToolbarFolder ||
+        node.title == RootBookmarksType.UnfiledFolder
+      ) {
+        const parentId = mapRootToTarget(node.title);
+        tasks.push(processChildren(parentId, node.children, `/${parentId}`, created));
+      }
     }
-    for (let i = 0; i < bookmarkList.length; i++) {
-      let node = bookmarkList[i];
-      if (node.title == RootBookmarksType.MenuFolder
-        || node.title == RootBookmarksType.MobileFolder
-        || node.title == RootBookmarksType.ToolbarFolder
-        || node.title == RootBookmarksType.UnfiledFolder) {
-        if (curBrowserType == BrowserType.FIREFOX) {
-          switch (node.title) {
-            case RootBookmarksType.MenuFolder:
-              node.children?.forEach(c => c.parentId = "menu________");
-              break;
-            case RootBookmarksType.MobileFolder:
-              node.children?.forEach(c => c.parentId = "mobile______");
-              break;
-            case RootBookmarksType.ToolbarFolder:
-              node.children?.forEach(c => c.parentId = "toolbar_____");
-              break;
-            case RootBookmarksType.UnfiledFolder:
-              node.children?.forEach(c => c.parentId = "unfiled_____");
-              break;
-            default:
-              node.children?.forEach(c => c.parentId = "unfiled_____");
-              break;
-          }
-        } else {
-          switch (node.title) {
-            case RootBookmarksType.MobileFolder:
-              node.children?.forEach(c => c.parentId = "3");
-              break;
-            case RootBookmarksType.ToolbarFolder:
-              node.children?.forEach(c => c.parentId = "1");
-              break;
-            case RootBookmarksType.UnfiledFolder:
-            case RootBookmarksType.MenuFolder:
-              node.children?.forEach(c => c.parentId = "2");
-              break;
-            default:
-              node.children?.forEach(c => c.parentId = "2");
-              break;
-          }
-        }
-        await createBookmarkTree(node.children);
+    for (const t of tasks) await t;
+  }
+
+  function normalizeTitle(title?: string) {
+    return (title ?? '').trim().toLowerCase();
+  }
+  function makeKey(node: { title?: string; url?: string }) {
+    if (node.url) return `B::${node.url}`; // dedupe by URL within same parent
+    return `F::${normalizeTitle(node.title)}`; // folders dedupe by normalized title
+  }
+
+  function mapRootToTarget(title: string): string {
+    if (curBrowserType == BrowserType.FIREFOX) {
+      switch (title) {
+        case RootBookmarksType.MenuFolder: return "menu________";
+        case RootBookmarksType.MobileFolder: return "mobile______";
+        case RootBookmarksType.ToolbarFolder: return "toolbar_____";
+        case RootBookmarksType.UnfiledFolder: default: return "unfiled_____";
+      }
+    } else {
+      switch (title) {
+        case RootBookmarksType.MobileFolder: return "3";
+        case RootBookmarksType.ToolbarFolder: return "1";
+        case RootBookmarksType.UnfiledFolder:
+        case RootBookmarksType.MenuFolder:
+        default: return "2";
+      }
+    }
+  }
+
+  async function processChildren(parentId: string, children: BookmarkInfo[] | undefined, parentPath: string, created: Set<string>) {
+    if (!children || children.length === 0) return;
+    let existing: Bookmarks.BookmarkTreeNode[] = [];
+    try {
+      existing = await browser.bookmarks.getChildren(parentId);
+    } catch { existing = []; }
+    const existingMap = new Map<string, Bookmarks.BookmarkTreeNode>();
+    for (const c of existing) {
+      existingMap.set(makeKey(c), c);
+    }
+    for (const node of children) {
+      const key = `${parentPath}|${makeKey(node)}`;
+      if (created.has(key)) {
+        // already created in this import run under this parentPath
         continue;
       }
-
-      let res: Bookmarks.BookmarkTreeNode = { id: '', title: '' };
-      try {
-        /* 处理firefox中创建 chrome://chrome-urls/ 格式的书签会报错的问题 */
-        res = await browser.bookmarks.create({
-          parentId: node.parentId,
-          title: node.title,
-          url: node.url
-        });
-      } catch (err) {
-        console.error(res, err);
+      const lookupKey = makeKey(node);
+      let res: Bookmarks.BookmarkTreeNode | undefined = existingMap.get(lookupKey);
+      if (!res) {
+        try {
+          res = await browser.bookmarks.create({
+            parentId,
+            title: node.title,
+            url: node.url,
+          });
+          if (res) existingMap.set(lookupKey, res);
+          created.add(key);
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        created.add(key);
       }
-      if (res.id && node.children && node.children.length > 0) {
-        node.children.forEach(c => c.parentId = res.id);
-        await createBookmarkTree(node.children);
+      if (res && node.children && node.children.length > 0) {
+        await processChildren(res.id!, node.children, `${parentPath}/${normalizeTitle(node.title)}`, created);
       }
     }
   }

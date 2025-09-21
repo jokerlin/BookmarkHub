@@ -86,5 +86,9 @@
     "removeAllBookmarksDesc": {
         "message": "أزل جميع العلامات المرجعية. يرجى إجراء نسخ احتياطي أولاً",
         "description": ""
+    },
+    "enableAutoSync": {
+        "message": "تمكين المزامنة التلقائية",
+        "description": "تحميل تلقائيًا عند تغيّر الإشارات المرجعية المحلية"
     }
 }

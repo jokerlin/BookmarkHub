@@ -7,6 +7,7 @@ export class SettingBase implements Options {
     gistID: string = '';
     gistFileName: string = 'BookmarkHub';
     enableNotify: boolean = true;
+    autoSyncEnabled: boolean = false;
     githubURL: string = 'https://api.github.com';
 }
 export class Setting extends SettingBase {
@@ -18,6 +19,8 @@ export class Setting extends SettingBase {
         setting.gistFileName = options.gistFileName;
         setting.githubToken = options.githubToken;
         setting.enableNotify = options.enableNotify;
+        // @ts-ignore - options typing is indexable from OptionsSync
+        setting.autoSyncEnabled = (options as any).autoSyncEnabled ?? false;
         return setting;
     }
 }

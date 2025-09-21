@@ -86,5 +86,9 @@
     "removeAllBookmarksDesc": {
         "message": "Eliminar todos los marcadores. Por favor, realice una copia de seguridad primero.",
         "description": ""
+    },
+    "enableAutoSync": {
+        "message": "Habilitar sincronización automática",
+        "description": "Subir automáticamente cuando cambien los marcadores locales"
     }
 }

@@ -50,6 +50,17 @@ const Popup: React.FC = () => {
                     </Col>
                 </Form.Group>
                 <Form.Group as={Row}>
+                    <Form.Label column="sm" sm={3} lg={2} xs={3}>{browser.i18n.getMessage('enableAutoSync')}</Form.Label>
+                    <Col sm={9} lg={10} xs={9}>
+                        <Form.Check
+                            id="autoSyncEnabled"
+                            name="autoSyncEnabled"
+                            ref={register}
+                            type="switch"
+                        />
+                    </Col>
+                </Form.Group>
+                <Form.Group as={Row}>
                     <Form.Label column="sm" sm={3} lg={2} xs={3}></Form.Label>
                     <Col sm={9} lg={10} xs={9}>
                         <a href="https://github.com/dudor/BookmarkHub" target="_blank">{browser.i18n.getMessage('help')}</a>

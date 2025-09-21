@@ -12,20 +12,27 @@ import './popup.css'
 const Popup: React.FC = () => {
     const [count, setCount] = useState({ local: "0", remote: "0" })
     useEffect(() => {
-        document.addEventListener('click', (e: MouseEvent) => {
-            let elem = e.target as HTMLInputElement;
-            if (elem != null && elem.className === 'dropdown-item') {
-                elem.setAttribute('disabled', 'disabled');
-                browser.runtime.sendMessage({ name: elem.name })
-                    .then((res) => {
-                        elem.removeAttribute('disabled');
-                        console.log("msg", Date.now())
+        const handler = (e: MouseEvent) => {
+            const target = e.target as HTMLElement | null;
+            const item = target ? target.closest('.dropdown-item') as HTMLButtonElement | null : null;
+            if (item) {
+                if (item.getAttribute('disabled') === 'disabled') return;
+                item.setAttribute('disabled', 'disabled');
+                const name = item.getAttribute('name') || '';
+                browser.runtime.sendMessage({ name })
+                    .then(() => {
+                        item.removeAttribute('disabled');
                     })
-                    .catch(c => {
-                        console.log("error", c)
+                    .catch((err) => {
+                        console.log('error', err);
+                        item.removeAttribute('disabled');
                     });
             }
-        });
+        };
+        document.addEventListener('click', handler);
+        return () => {
+            document.removeEventListener('click', handler);
+        };
     }, [])
     useEffect(() => {
         let getSetting = async () => {
@@ -58,5 +65,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Popup />
     </React.StrictMode>,
 );
-
 

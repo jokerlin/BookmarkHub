@@ -86,5 +86,9 @@
     "removeAllBookmarksDesc": {
         "message": "모든 북마크를 삭제합니다. 사전에 백업하세요.",
         "description": ""
+    },
+    "enableAutoSync": {
+        "message": "자동 동기화 사용",
+        "description": "로컬 북마크 변경 시 자동 업로드"
     }
 }

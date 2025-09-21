@@ -7,6 +7,7 @@ export default new OptionsSync({
         gistID: '',
         gistFileName: 'BookmarkHub',
         enableNotify: true,
+        autoSyncEnabled: false,
         githubURL: 'https://api.github.com',
     },
 
