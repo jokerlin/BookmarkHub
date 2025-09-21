@@ -2,7 +2,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <a href="https://github.com/dudor/BookmarkHub">
+  <a href="https://github.com/jokerlin/BookmarkHub">
     <img src="images/icon128.png" alt="BookmarkHub" >
   </a>
 
@@ -10,7 +10,7 @@
   <p align="center">
     BookmarkHub 是一款浏览器插件，可以在不同浏览器之间同步你的书签。
     <br />
-    <a href="https://github.com/dudor/BookmarkHub/issues">反馈问题</a>
+    <a href="https://github.com/jokerlin/BookmarkHub/issues">反馈问题</a>
     ·
     <a href="/README_cn.md">简体中文</a>
     ·
@@ -33,7 +33,7 @@
 </details>
 
 <!-- ABOUT THE PROJECT -->
-## 关于 
+## 关于
 
 BookmarkHub 是一款浏览器插件，可以在不同浏览器之间同步你的书签。
 
@@ -87,9 +87,6 @@ See `LICENSE` for more information.
 <!-- CONTACT -->
 ## Contact
 
-dudor
+jokerlin
 
-Project Link: [https://github.com/dudor/BookmarkHub](https://github.com/dudor/BookmarkHub)
-
-
-
+Project Link: [https://github.com/jokerlin/BookmarkHub](https://github.com/jokerlin/BookmarkHub)

@@ -2,7 +2,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <a href="https://github.com/dudor/BookmarkHub">
+  <a href="https://github.com/jokerlin/BookmarkHub">
     <img src="images/icon128.png" alt="BookmarkHub" >
   </a>
 
@@ -10,7 +10,7 @@
   <p align="center">
     BookmarkHub is a browser plug-in that can synchronize your bookmarks between different browsers.
     <br />
-    <a href="https://github.com/dudor/BookmarkHub/issues">Feedback</a>
+    <a href="https://github.com/jokerlin/BookmarkHub/issues">Feedback</a>
     ·
     <a href="/README_cn.md">简体中文</a>
     ·
@@ -33,7 +33,7 @@
 </details>
 
 <!-- ABOUT THE PROJECT -->
-## About The Project 
+## About The Project
 
 BookmarkHub is a browser plug-in that can synchronize your bookmarks between different browsers.
 
@@ -89,9 +89,6 @@ See `LICENSE` for more information.
 <!-- CONTACT -->
 ## Contact
 
-dudor
+jokerlin
 
-Project Link: [https://github.com/dudor/BookmarkHub](https://github.com/dudor/BookmarkHub)
-
-
-
+Project Link: [https://github.com/jokerlin/BookmarkHub](https://github.com/jokerlin/BookmarkHub)

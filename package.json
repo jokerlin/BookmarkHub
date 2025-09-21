@@ -8,7 +8,7 @@
   "private": true,
   "version": "0.0.7",
   "type": "module",
-  "author": "dudor",
+  "author": "jokerlin",
   "license": "",
   "scripts": {
     "dev": "wxt",
